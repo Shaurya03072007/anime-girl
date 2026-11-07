@@ -1,0 +1,762 @@
+import {
+  AgentTraceEntry,
+  CharacterConfig,
+  ConversationMessageItem,
+  KnowledgeEntity,
+  KnowledgeRelationship,
+  MemoryRecord,
+  PersonalityConfig,
+  ProactivePolicyConfig,
+  ProactiveSuggestion,
+  ReminderItem,
+  TimelineEntry,
+} from '../types/aether';
+import { AndroidRuntimeState, buildAccessibleTreeForPackage } from './deviceController';
+import { computeDeterministicEmbedding, MemoryStateStore } from './memoryEngine';
+
+export function createInitialMemoryStore(): MemoryStateStore {
+  const entities: KnowledgeEntity[] = [
+    {
+      id: 'ent_shaurya',
+      name: 'Shaurya',
+      type: 'Person',
+      description: 'Primary user, senior Android & AI systems architect.',
+      attributes: { role: 'Lead Architect', timezone: 'IST / PST' },
+      createdAt: '2026-11-01T09:00:00.000Z',
+      updatedAt: '2026-11-07T10:30:00.000Z',
+      mentionCount: 18,
+    },
+    {
+      id: 'ent_aether',
+      name: 'Project Aether',
+      type: 'Project',
+      description: 'Living AI companion ecosystem for Android using Google ADK and Gemini 3.8 Live.',
+      attributes: { status: 'Active Development', repo: 'aether-monorepo' },
+      createdAt: '2026-11-01T09:10:00.000Z',
+      updatedAt: '2026-11-07T11:15:00.000Z',
+      mentionCount: 15,
+    },
+    {
+      id: 'ent_kotlin',
+      name: 'Kotlin',
+      type: 'Technology',
+      description: 'Primary language for the native Android client with Coroutines & StateFlow.',
+      attributes: { version: '2.1.0', targetSdk: '35' },
+      createdAt: '2026-11-01T10:00:00.000Z',
+      updatedAt: '2026-11-06T18:20:00.000Z',
+      mentionCount: 11,
+    },
+    {
+      id: 'ent_compose',
+      name: 'Jetpack Compose',
+      type: 'Technology',
+      description: 'Modern Android UI toolkit used for the dark-first companion interface and avatar canvas.',
+      attributes: { designSystem: 'Material 3' },
+      createdAt: '2026-11-02T11:00:00.000Z',
+      updatedAt: '2026-11-06T19:00:00.000Z',
+      mentionCount: 9,
+    },
+    {
+      id: 'ent_adk',
+      name: 'Google ADK',
+      type: 'Technology',
+      description: 'Agent Development Kit orchestrating Root, Decision, Memory, Phone, and Event agents.',
+      attributes: { runtime: 'Python 3.11 + Runner.run_live()' },
+      createdAt: '2026-11-02T14:00:00.000Z',
+      updatedAt: '2026-11-07T08:45:00.000Z',
+      mentionCount: 12,
+    },
+    {
+      id: 'ent_pgvector',
+      name: 'PostgreSQL + pgvector',
+      type: 'Technology',
+      description: 'Relational and vector hybrid storage engine for episodic, semantic, and graph memories.',
+      attributes: { indexType: 'HNSW cosine' },
+      createdAt: '2026-11-03T12:00:00.000Z',
+      updatedAt: '2026-11-07T09:30:00.000Z',
+      mentionCount: 8,
+    },
+    {
+      id: 'ent_telugu',
+      name: 'Telugu & English Bilingual',
+      type: 'Preference',
+      description: 'User speaks fluent English and Telugu, often mixing both naturally in voice sessions.',
+      attributes: { codeswitching: 'Enabled' },
+      createdAt: '2026-11-03T15:30:00.000Z',
+      updatedAt: '2026-11-07T07:00:00.000Z',
+      mentionCount: 6,
+    },
+    {
+      id: 'ent_hyderabad',
+      name: 'Hyderabad',
+      type: 'Place',
+      description: 'Primary city associated with user cultural context and Telugu dialect.',
+      attributes: { region: 'Telangana' },
+      createdAt: '2026-11-04T09:00:00.000Z',
+      updatedAt: '2026-11-05T16:00:00.000Z',
+      mentionCount: 4,
+    },
+    {
+      id: 'ent_ananya',
+      name: 'Ananya Rao',
+      type: 'Person',
+      description: 'Collaborating backend engineer reviewing PostgreSQL pgvector migrations.',
+      attributes: { team: 'Backend & Memory Graph' },
+      createdAt: '2026-11-05T11:20:00.000Z',
+      updatedAt: '2026-11-06T21:10:00.000Z',
+      mentionCount: 5,
+    },
+  ];
+
+  const memories: MemoryRecord[] = [
+    {
+      id: 'mem_01_kotlin_arch',
+      content: 'Shaurya develops native Android applications using Kotlin, Jetpack Compose, Coroutines, and Clean MVVM architecture.',
+      category: 'semantic',
+      epistemicStatus: 'explicitly_stated',
+      createdAt: '2026-11-02T10:15:00.000Z',
+      updatedAt: '2026-11-06T18:20:00.000Z',
+      eventTimestamp: '2026-11-02T10:15:00.000Z',
+      source: {
+        sourceId: 'src_conv_101',
+        sourceType: 'conversation',
+        referenceId: 'conv_session_01',
+        excerpt: 'I build all my Android apps with Kotlin, Jetpack Compose, and strict MVVM.',
+        timestamp: '2026-11-02T10:15:00.000Z',
+      },
+      confidence: 0.98,
+      importance: 0.94,
+      sensitivity: 'personal',
+      embedding: computeDeterministicEmbedding(
+        'Shaurya develops native Android applications using Kotlin, Jetpack Compose, Coroutines, and Clean MVVM architecture.'
+      ),
+      relatedEntityIds: ['ent_shaurya', 'ent_kotlin', 'ent_compose'],
+      verificationStatus: 'verified',
+      accessCount: 14,
+      lastAccessedAt: '2026-11-07T11:10:00.000Z',
+      versions: [
+        {
+          versionId: 'ver_01_a',
+          content: 'Shaurya develops Android applications using Kotlin.',
+          updatedAt: '2026-11-02T10:15:00.000Z',
+          reason: 'Initial extraction from onboarding conversation',
+          confidence: 0.95,
+        },
+        {
+          versionId: 'ver_01_b',
+          content: 'Shaurya develops native Android applications using Kotlin, Jetpack Compose, Coroutines, and Clean MVVM architecture.',
+          updatedAt: '2026-11-06T18:20:00.000Z',
+          reason: 'Consolidated with Jetpack Compose and Coroutines architectural details',
+          confidence: 0.98,
+        },
+      ],
+    },
+    {
+      id: 'mem_02_debugging_episode',
+      content: 'Spent Friday evening debugging WebSocket audio frame buffering and barge-in interruption for Project Aether.',
+      category: 'episodic',
+      epistemicStatus: 'observed_event',
+      createdAt: '2026-11-06T22:40:00.000Z',
+      updatedAt: '2026-11-06T22:40:00.000Z',
+      eventTimestamp: '2026-11-06T22:40:00.000Z',
+      source: {
+        sourceId: 'src_evt_202',
+        sourceType: 'conversation',
+        referenceId: 'conv_session_08',
+        excerpt: 'We just finished debugging the 16kHz PCM audio buffer and barge-in handler.',
+        timestamp: '2026-11-06T22:40:00.000Z',
+      },
+      confidence: 0.95,
+      importance: 0.86,
+      sensitivity: 'personal',
+      embedding: computeDeterministicEmbedding(
+        'Spent Friday evening debugging WebSocket audio frame buffering and barge-in interruption for Project Aether.'
+      ),
+      relatedEntityIds: ['ent_shaurya', 'ent_aether', 'ent_adk'],
+      verificationStatus: 'verified',
+      accessCount: 7,
+      lastAccessedAt: '2026-11-07T10:50:00.000Z',
+      versions: [
+        {
+          versionId: 'ver_02_a',
+          content: 'Spent Friday evening debugging WebSocket audio frame buffering and barge-in interruption for Project Aether.',
+          updatedAt: '2026-11-06T22:40:00.000Z',
+          reason: 'Logged after evening coding session',
+          confidence: 0.95,
+        },
+      ],
+    },
+    {
+      id: 'mem_03_procedural_pref',
+      content: 'Prefers direct, deeply technical architectural explanations without superficial boilerplate, and enjoys natural Telugu-English code-switching.',
+      category: 'procedural',
+      epistemicStatus: 'explicitly_stated',
+      createdAt: '2026-11-03T15:35:00.000Z',
+      updatedAt: '2026-11-03T15:35:00.000Z',
+      eventTimestamp: '2026-11-03T15:35:00.000Z',
+      source: {
+        sourceId: 'src_conv_104',
+        sourceType: 'conversation',
+        referenceId: 'conv_session_03',
+        excerpt: 'Keep explanations direct and technical, and feel free to reply in Telugu + English mix.',
+        timestamp: '2026-11-03T15:35:00.000Z',
+      },
+      confidence: 0.97,
+      importance: 0.92,
+      sensitivity: 'personal',
+      embedding: computeDeterministicEmbedding(
+        'Prefers direct, deeply technical architectural explanations without superficial boilerplate, and enjoys natural Telugu-English code-switching.'
+      ),
+      relatedEntityIds: ['ent_shaurya', 'ent_telugu', 'ent_hyderabad'],
+      verificationStatus: 'verified',
+      accessCount: 19,
+      lastAccessedAt: '2026-11-07T11:45:00.000Z',
+      versions: [
+        {
+          versionId: 'ver_03_a',
+          content: 'Prefers direct, deeply technical architectural explanations without superficial boilerplate, and enjoys natural Telugu-English code-switching.',
+          updatedAt: '2026-11-03T15:35:00.000Z',
+          reason: 'Explicitly configured by user',
+          confidence: 0.97,
+        },
+      ],
+    },
+    {
+      id: 'mem_04_relational_ananya',
+      content: 'Ananya Rao collaborates with Shaurya on Project Aether to optimize PostgreSQL pgvector HNSW indexing and Alembic schema migrations.',
+      category: 'relational',
+      epistemicStatus: 'explicitly_stated',
+      createdAt: '2026-11-05T11:25:00.000Z',
+      updatedAt: '2026-11-05T11:25:00.000Z',
+      eventTimestamp: '2026-11-05T11:25:00.000Z',
+      source: {
+        sourceId: 'src_conv_106',
+        sourceType: 'conversation',
+        referenceId: 'conv_session_05',
+        excerpt: 'Ananya Rao is helping me tune the pgvector HNSW index for the memory graph.',
+        timestamp: '2026-11-05T11:25:00.000Z',
+      },
+      confidence: 0.93,
+      importance: 0.84,
+      sensitivity: 'personal',
+      embedding: computeDeterministicEmbedding(
+        'Ananya Rao collaborates with Shaurya on Project Aether to optimize PostgreSQL pgvector HNSW indexing and Alembic schema migrations.'
+      ),
+      relatedEntityIds: ['ent_shaurya', 'ent_ananya', 'ent_aether', 'ent_pgvector'],
+      verificationStatus: 'verified',
+      accessCount: 5,
+      lastAccessedAt: '2026-11-07T09:20:00.000Z',
+      versions: [
+        {
+          versionId: 'ver_04_a',
+          content: 'Ananya Rao collaborates with Shaurya on Project Aether to optimize PostgreSQL pgvector HNSW indexing and Alembic schema migrations.',
+          updatedAt: '2026-11-05T11:25:00.000Z',
+          reason: 'Extracted from team discussion',
+          confidence: 0.93,
+        },
+      ],
+    },
+    {
+      id: 'mem_05_temporal_evolution',
+      content: 'Project Aether started in October as "Project Nova" using standard REST polling and was renamed in November after migrating to Google ADK Runner.run_live() WebSockets.',
+      category: 'temporal',
+      epistemicStatus: 'explicitly_stated',
+      createdAt: '2026-11-04T16:10:00.000Z',
+      updatedAt: '2026-11-07T08:30:00.000Z',
+      eventTimestamp: '2026-11-04T16:10:00.000Z',
+      source: {
+        sourceId: 'src_conv_105',
+        sourceType: 'conversation',
+        referenceId: 'conv_session_04',
+        excerpt: 'We renamed Project Nova to Project Aether once we moved from REST polling to ADK Runner.run_live().',
+        timestamp: '2026-11-04T16:10:00.000Z',
+      },
+      confidence: 0.96,
+      importance: 0.89,
+      sensitivity: 'public',
+      embedding: computeDeterministicEmbedding(
+        'Project Aether started in October as "Project Nova" using standard REST polling and was renamed in November after migrating to Google ADK Runner.run_live() WebSockets.'
+      ),
+      relatedEntityIds: ['ent_aether', 'ent_adk'],
+      verificationStatus: 'verified',
+      accessCount: 9,
+      lastAccessedAt: '2026-11-07T10:00:00.000Z',
+      versions: [
+        {
+          versionId: 'ver_05_a',
+          content: 'Project Nova uses REST endpoints for companion chat.',
+          updatedAt: '2026-10-20T12:00:00.000Z',
+          reason: 'Original October milestone record',
+          confidence: 0.88,
+        },
+        {
+          versionId: 'ver_05_b',
+          content: 'Project Aether started in October as "Project Nova" using standard REST polling and was renamed in November after migrating to Google ADK Runner.run_live() WebSockets.',
+          updatedAt: '2026-11-07T08:30:00.000Z',
+          reason: 'Temporal evolution update reflecting rename and ADK Live migration',
+          confidence: 0.96,
+        },
+      ],
+    },
+    {
+      id: 'mem_06_unverified_inference',
+      content: 'Shaurya might schedule a hardware field test of the Android AccessibilityService on a Pixel 9 Pro fold device this weekend.',
+      category: 'episodic',
+      epistemicStatus: 'model_inference',
+      createdAt: '2026-11-07T09:45:00.000Z',
+      updatedAt: '2026-11-07T09:45:00.000Z',
+      eventTimestamp: '2026-11-07T09:45:00.000Z',
+      source: {
+        sourceId: 'src_evt_209',
+        sourceType: 'proactive_consolidation',
+        referenceId: ' consolidation_batch_12',
+        excerpt: 'Inferred from recent USB debugging notification and calendar slot.',
+        timestamp: '2026-11-07T09:45:00.000Z',
+      },
+      confidence: 0.64,
+      importance: 0.71,
+      sensitivity: 'personal',
+      embedding: computeDeterministicEmbedding(
+        'Shaurya might schedule a hardware field test of the Android AccessibilityService on a Pixel 9 Pro fold device this weekend.'
+      ),
+      relatedEntityIds: ['ent_shaurya', 'ent_aether'],
+      verificationStatus: 'unverified',
+      accessCount: 2,
+      lastAccessedAt: '2026-11-07T09:45:00.000Z',
+      versions: [
+        {
+          versionId: 'ver_06_a',
+          content: 'Shaurya might schedule a hardware field test of the Android AccessibilityService on a Pixel 9 Pro fold device this weekend.',
+          updatedAt: '2026-11-07T09:45:00.000Z',
+          reason: 'Candidate inference awaiting user confirmation',
+          confidence: 0.64,
+        },
+      ],
+    },
+  ];
+
+  const relationships: KnowledgeRelationship[] = [
+    {
+      id: 'rel_01',
+      sourceEntityId: 'ent_shaurya',
+      targetEntityId: 'ent_aether',
+      predicate: 'architects',
+      confidence: 0.99,
+      evidenceMemoryIds: ['mem_02_debugging_episode', 'mem_04_relational_ananya'],
+      createdAt: '2026-11-01T09:15:00.000Z',
+      updatedAt: '2026-11-07T10:00:00.000Z',
+    },
+    {
+      id: 'rel_02',
+      sourceEntityId: 'ent_shaurya',
+      targetEntityId: 'ent_kotlin',
+      predicate: 'develops_with',
+      confidence: 0.98,
+      evidenceMemoryIds: ['mem_01_kotlin_arch'],
+      createdAt: '2026-11-02T10:15:00.000Z',
+      updatedAt: '2026-11-06T18:20:00.000Z',
+    },
+    {
+      id: 'rel_03',
+      sourceEntityId: 'ent_aether',
+      targetEntityId: 'ent_compose',
+      predicate: 'uses_ui_toolkit',
+      confidence: 0.97,
+      evidenceMemoryIds: ['mem_01_kotlin_arch'],
+      createdAt: '2026-11-02T11:00:00.000Z',
+      updatedAt: '2026-11-06T19:00:00.000Z',
+    },
+    {
+      id: 'rel_04',
+      sourceEntityId: 'ent_aether',
+      targetEntityId: 'ent_adk',
+      predicate: 'orchestrated_by',
+      confidence: 0.98,
+      evidenceMemoryIds: ['mem_02_debugging_episode', 'mem_05_temporal_evolution'],
+      createdAt: '2026-11-02T14:00:00.000Z',
+      updatedAt: '2026-11-07T08:45:00.000Z',
+    },
+    {
+      id: 'rel_05',
+      sourceEntityId: 'ent_aether',
+      targetEntityId: 'ent_pgvector',
+      predicate: 'persists_graph_in',
+      confidence: 0.96,
+      evidenceMemoryIds: ['mem_04_relational_ananya'],
+      createdAt: '2026-11-03T12:00:00.000Z',
+      updatedAt: '2026-11-07T09:30:00.000Z',
+    },
+    {
+      id: 'rel_06',
+      sourceEntityId: 'ent_ananya',
+      targetEntityId: 'ent_aether',
+      predicate: 'collaborates_on',
+      confidence: 0.93,
+      evidenceMemoryIds: ['mem_04_relational_ananya'],
+      createdAt: '2026-11-05T11:25:00.000Z',
+      updatedAt: '2026-11-06T21:10:00.000Z',
+    },
+    {
+      id: 'rel_07',
+      sourceEntityId: 'ent_shaurya',
+      targetEntityId: 'ent_telugu',
+      predicate: 'converses_in',
+      confidence: 0.97,
+      evidenceMemoryIds: ['mem_03_procedural_pref'],
+      createdAt: '2026-11-03T15:35:00.000Z',
+      updatedAt: '2026-11-07T07:00:00.000Z',
+    },
+    {
+      id: 'rel_08',
+      sourceEntityId: 'ent_shaurya',
+      targetEntityId: 'ent_hyderabad',
+      predicate: 'connected_to_place',
+      confidence: 0.91,
+      evidenceMemoryIds: ['mem_03_procedural_pref'],
+      createdAt: '2026-11-04T09:00:00.000Z',
+      updatedAt: '2026-11-05T16:00:00.000Z',
+    },
+  ];
+
+  const timeline: TimelineEntry[] = memories.map((m, idx) => ({
+    id: `tl_seed_${idx}`,
+    timestamp: m.eventTimestamp || m.createdAt,
+    title: `${m.category.charAt(0).toUpperCase() + m.category.slice(1)} · ${
+      m.verificationStatus === 'unverified' ? 'Candidate Inference' : 'Verified Memory'
+    }`,
+    summary: m.content,
+    category: m.category,
+    memoryId: m.id,
+    entityIds: m.relatedEntityIds,
+    sourceType: m.source.sourceType,
+  }));
+
+  return {
+    memories,
+    entities,
+    relationships,
+    timeline,
+  };
+}
+
+export function createInitialCharacterConfig(): CharacterConfig {
+  return {
+    name: 'Aria',
+    hairStyle: 'long_flowing',
+    hairColor: '#818cf8',
+    secondaryHairColor: '#38bdf8',
+    eyeColor: '#2dd4bf',
+    eyeShape: 'starry',
+    outfit: 'casual_knit',
+    primaryOutfitColor: '#1e1b4b',
+    accentColor: '#6366f1',
+    accessories: ['glasses', 'star_hairpin'],
+    backgroundTheme: 'tokyo_twilight',
+    voiceName: 'Zephyr',
+    animationIntensity: 88,
+    currentAnimation: 'Happy',
+  };
+}
+
+export function createInitialPersonalityConfig(): PersonalityConfig {
+  return {
+    coreTraits: ['Analytical', 'Attentive', 'Resourceful', 'Loyal', 'Culturally Fluent'],
+    conversationalStyle: 'warm_attentive',
+    humorLevel: 62,
+    formality: 35,
+    emotionalExpressiveness: 78,
+    initiativeLevel: 74,
+    preferredLanguage: 'te-en',
+    relationshipStage: 'Co-Architect',
+    boundaries: [
+      'Never claim biological consciousness or human feelings',
+      'Always request confirmation before executing high-risk phone intents',
+      'Never ingest OTP, banking, or excluded-app notifications',
+      'Never silently record the screen without an active MediaProjection indicator',
+    ],
+    learnedHabits: [
+      'Provides concise Kotlin/Python architectural code snippets without filler',
+      'Switches effortlessly between English and conversational Telugu phrases (e.g., "Namaskaram Shaurya garu, chuddam!")',
+      'Proactively links new technical tasks to existing PostgreSQL/pgvector graph nodes',
+    ],
+  };
+}
+
+export function createInitialAndroidState(): AndroidRuntimeState {
+  const defaultPkg = 'com.github.android';
+  return {
+    deviceModel: 'Google Pixel 9 Pro (aether-arm64)',
+    androidVersion: 'Android 15 (API 35)',
+    sdkInt: 35,
+    batteryLevel: 86,
+    isCharging: true,
+    batteryTempC: 31.4,
+    networkType: 'Wi-Fi 6E (5GHz)',
+    ssid: 'AetherLab-5G-Ultra',
+    ipAddress: '192.168.1.142',
+    foregroundPackage: defaultPkg,
+    foregroundActivity: 'com.github.android.MainActivity',
+    screenScrollOffsetY: 0,
+    lastEnteredText: '',
+    permissions: {
+      accessibilityService: true,
+      notificationListener: true,
+      mediaProjectionActive: false,
+      microphone: true,
+      camera: true,
+      location: true,
+      calendar: true,
+      foregroundService: true,
+      overlayPermission: true,
+    },
+    installedApps: [
+      {
+        packageName: 'com.github.android',
+        appName: 'GitHub',
+        category: 'Developer Tools',
+        versionName: '1.192.0',
+        isExcludedFromObservation: false,
+        lastUsed: '2026-11-07T11:45:00.000Z',
+      },
+      {
+        packageName: 'com.termux',
+        appName: 'Termux',
+        category: 'Developer Tools',
+        versionName: '0.119.1',
+        isExcludedFromObservation: false,
+        lastUsed: '2026-11-07T11:20:00.000Z',
+      },
+      {
+        packageName: 'com.google.android.calendar',
+        appName: 'Google Calendar',
+        category: 'Productivity',
+        versionName: '2026.44.1',
+        isExcludedFromObservation: false,
+        lastUsed: '2026-11-07T09:15:00.000Z',
+      },
+      {
+        packageName: 'com.android.settings',
+        appName: 'System Settings',
+        category: 'System',
+        versionName: '15.0.0',
+        isExcludedFromObservation: false,
+        lastUsed: '2026-11-07T08:30:00.000Z',
+      },
+      {
+        packageName: 'com.android.chrome',
+        appName: 'Chrome Browser',
+        category: 'Web',
+        versionName: '131.0.6778',
+        isExcludedFromObservation: false,
+        lastUsed: '2026-11-07T10:40:00.000Z',
+      },
+      {
+        packageName: 'com.whatsapp',
+        appName: 'WhatsApp Messenger',
+        category: 'Communication',
+        versionName: '2.26.22',
+        isExcludedFromObservation: true,
+        lastUsed: '2026-11-07T10:05:00.000Z',
+      },
+    ],
+    accessibleNodes: buildAccessibleTreeForPackage(defaultPkg, 0, ''),
+    notifications: [
+      {
+        id: 'notif_seed_1',
+        packageName: 'com.github.android',
+        appName: 'GitHub',
+        title: 'Ananya Rao commented on PR #42',
+        text: 'pgvector HNSW migration scripts verified against 50k episodic embeddings.',
+        timestamp: '2026-11-07T11:42:00.000Z',
+        category: 'dev_alert',
+        dismissed: false,
+      },
+      {
+        id: 'notif_seed_2',
+        packageName: 'com.google.android.calendar',
+        appName: 'Google Calendar',
+        title: 'ADK Live Voice Architecture Review',
+        text: 'Starts in 45 minutes · Meet + Android Studio Live Demo',
+        timestamp: '2026-11-07T11:30:00.000Z',
+        category: 'calendar',
+        dismissed: false,
+      },
+      {
+        id: 'notif_seed_3',
+        packageName: 'com.whatsapp',
+        appName: 'WhatsApp Messenger',
+        title: 'Personal Chat (Excluded by Privacy Policy)',
+        text: 'Private message content masked by NotificationListener filter',
+        timestamp: '2026-11-07T11:10:00.000Z',
+        category: 'message',
+        dismissed: false,
+      },
+    ],
+    calendarEvents: [
+      {
+        id: 'cal_seed_1',
+        title: 'ADK Live Voice Architecture Review with Ananya',
+        startTime: '2026-11-07T13:00:00.000Z',
+        location: 'Google Meet / Hyderabad Lab',
+      },
+    ],
+    actionHistory: [
+      {
+        actionId: 'act_seed_01',
+        actionType: 'inspect_accessible_ui',
+        parameters: { packageName: 'com.github.android' },
+        requestTimestamp: '2026-11-07T11:44:10.000Z',
+        permissionStatus: 'granted',
+        executionStatus: 'executed',
+        result: {
+          packageName: 'com.github.android',
+          nodeCount: 4,
+          summary: 'Inspected PR #42 view in GitHub Android app',
+        },
+        verificationStatus: 'verified',
+        riskLevel: 'low',
+        initiatedBy: 'companion_agent',
+      },
+      {
+        actionId: 'act_seed_02',
+        actionType: 'get_battery_status',
+        parameters: {},
+        requestTimestamp: '2026-11-07T11:30:00.000Z',
+        permissionStatus: 'granted',
+        executionStatus: 'executed',
+        result: {
+          batteryLevel: 86,
+          isCharging: true,
+          temperatureCelsius: 31.4,
+        },
+        verificationStatus: 'verified',
+        riskLevel: 'low',
+        initiatedBy: 'proactive_engine',
+      },
+    ],
+  };
+}
+
+export function createInitialProactivePolicy(): ProactivePolicyConfig {
+  return {
+    quietHoursStart: '23:00',
+    quietHoursEnd: '07:00',
+    maxProactiveMessagesPerDay: 8,
+    cooldownMinutes: 15,
+    respectDoNotDisturb: true,
+    doNotDisturbActive: false,
+    excludedPackages: ['com.whatsapp', 'com.google.android.apps.nbu.paisa.user'],
+    initiativeThreshold: 65,
+  };
+}
+
+export function createInitialSuggestions(): ProactiveSuggestion[] {
+  return [
+    {
+      id: 'pro_seed_01',
+      timestamp: '2026-11-07T11:43:00.000Z',
+      triggerEvent: 'com.github.android: PR #42 Review Comment',
+      title: 'Open GitHub PR #42 & Inspect pgvector Migration',
+      message: 'Ananya confirmed the pgvector HNSW migration scripts on PR #42. Shall I bring GitHub to the foreground and inspect the accessible review controls?',
+      reasoning: 'Matched entity "Ananya Rao" and "PostgreSQL + pgvector" in Relational Memory (Relevance 92/100, Risk: MEDIUM).',
+      relevanceScore: 92,
+      riskLevel: 'medium',
+      status: 'pending',
+      proposedAction: {
+        capability: 'launch_application',
+        parameters: { packageName: 'com.github.android' },
+      },
+    },
+    {
+      id: 'pro_seed_02',
+      timestamp: '2026-11-07T11:31:00.000Z',
+      triggerEvent: 'com.google.android.calendar: ADK Live Voice Architecture Review',
+      title: 'Send Pre-Meeting Summary Intent to Ananya',
+      message: 'Your ADK Live Voice Architecture Review starts soon. Would you like to open the Android email chooser with the latest audio latency benchmarks?',
+      reasoning: 'High-risk external communication action requires explicit user confirmation before launching Android intent chooser.',
+      relevanceScore: 85,
+      riskLevel: 'high',
+      status: 'pending',
+      proposedAction: {
+        capability: 'initiate_supported_phone_intent',
+        parameters: {
+          intentAction: 'android.intent.action.SENDTO',
+          dataUri: 'mailto:ananya@aether.dev?subject=ADK%20Live%20Benchmarks',
+        },
+      },
+    },
+  ];
+}
+
+export function createInitialConversation(): ConversationMessageItem[] {
+  return [
+    {
+      id: 'msg_seed_1',
+      role: 'companion',
+      text: 'Namaskaram Shaurya! I just brewed a fresh pour-over coffee by the turntable and was sketching some new UI ideas in my notebook while listening to Nujabes. I also saw Ananya commented on your pgvector PR #42 on your Pixel 9 Pro—grab a cup of coffee and tell me how your day is going, or emi cheddam ippudu?',
+      language: 'te-en',
+      timestamp: '2026-11-07T11:45:00.000Z',
+      modality: 'voice',
+      emotionState: 'Happy',
+    },
+  ];
+}
+
+export function createInitialReminders(): ReminderItem[] {
+  return [
+    {
+      id: 'rem_01',
+      title: 'Verify ADK Runner.run_live() barge-in interruption latency on physical Pixel 9 Pro',
+      dueAt: '2026-11-07T14:00:00.000Z',
+      completed: false,
+      projectTag: 'Project Aether',
+      createdBy: 'companion',
+    },
+    {
+      id: 'rem_02',
+      title: 'Review Alembic migration 002_pgvector_hnsw_graph.py with Ananya',
+      dueAt: '2026-11-07T16:30:00.000Z',
+      completed: false,
+      projectTag: 'Memory Engine',
+      createdBy: 'user',
+    },
+  ];
+}
+
+export function createInitialAgentTraces(): AgentTraceEntry[] {
+  return [
+    {
+      id: 'trace_seed_1',
+      timestamp: '2026-11-07T11:44:10.000Z',
+      agentName: 'EventEvaluationAgent',
+      operation: 'evaluate_notification',
+      inputSummary: 'GitHub notification from Ananya Rao on PR #42',
+      outputSummary: 'Relevance 92/100 -> Created ProactiveSuggestion pro_seed_01',
+      reasoning: 'Notification matched high-importance entities [Ananya Rao, PostgreSQL + pgvector, Project Aether]. Not in quiet hours; DND inactive.',
+      latencyMs: 118,
+      status: 'success',
+    },
+    {
+      id: 'trace_seed_2',
+      timestamp: '2026-11-07T11:42:05.000Z',
+      agentName: 'MemoryAgent',
+      operation: 'hybrid_context_retrieval',
+      inputSummary: 'Query: "PR #42 pgvector migration Ananya"',
+      outputSummary: 'Retrieved 3 connected memories (top score 0.892)',
+      reasoning: 'Combined 32-dim cosine similarity (0.42 weight), full-text token match (0.30 weight), and 1-hop graph boost (0.15 weight).',
+      latencyMs: 34,
+      status: 'success',
+    },
+    {
+      id: 'trace_seed_3',
+      timestamp: '2026-11-07T11:30:12.000Z',
+      agentName: 'PhoneInteractionAgent',
+      operation: 'execute_capability:get_battery_status',
+      inputSummary: 'Scheduled telemetry check via DeviceController',
+      outputSummary: 'Verified: Battery 86% (Charging, 31.4°C)',
+      reasoning: 'Low-risk read capability executed directly via Android BatteryManager sticky intent.',
+      latencyMs: 19,
+      status: 'success',
+    },
+  ];
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Project Aether — Living AI Companion Ecosystem",
+  "description": "A production-oriented AI companion ecosystem combining an animated customizable anime avatar, Gemini 3.8 Live voice conversation, Google ADK multi-agent orchestration, hybrid PostgreSQL/pgvector knowledge graph memory engine, native Android DeviceController integration, and proactive event decision engine.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,21 @@
+## Copy this file to local.properties in aether/android/local.properties
+## Android Studio automatically sets sdk.dir, or set yours below:
+# sdk.dir=/Users/yourname/Library/Android/sdk
+
+## ============================================================================
+## PROJECT AETHER BACKEND URL CONFIGURATION FOR ANDROID
+## ============================================================================
+## Option 1: Physical Android Phone via USB + `adb reverse tcp:8000 tcp:8000`
+AETHER_BACKEND_HTTP_URL=http://127.0.0.1:8000
+AETHER_BACKEND_WS_URL=ws://127.0.0.1:8000
+
+## Option 2: Physical Android Phone over Wi-Fi LAN (Replace 192.168.1.42 with your PC LAN IP)
+# AETHER_BACKEND_HTTP_URL=http://192.168.1.42:8000
+# AETHER_BACKEND_WS_URL=ws://192.168.1.42:8000
+
+## Option 3: Android Studio Emulator (10.0.2.2 maps to host machine localhost)
+# AETHER_BACKEND_HTTP_URL=http://10.0.2.2:8000
+# AETHER_BACKEND_WS_URL=ws://10.0.2.2:8000
+
+## Shared API Token matching AETHER_API_TOKEN in aether/backend/.env
+AETHER_API_TOKEN=aether-dev-local-token-2026

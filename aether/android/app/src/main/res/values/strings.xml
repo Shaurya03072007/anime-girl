@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aether Companion (Aria)</string>
+    <string name="accessibility_service_description">Allows Aria to observe permitted screen hierarchy and execute explicitly confirmed UI actions on your behalf.</string>
+</resources>
