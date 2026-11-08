@@ -6,8 +6,8 @@ services:
     container_name: aether-postgres
     environment:
       POSTGRES_USER: aether
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aether_local_dev}
-      POSTGRES_DB: aether_memory_graph
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aether_secret_pass}
+      POSTGRES_DB: aether_companion
     ports:
       - "5432:5432"
     volumes:
@@ -25,14 +25,18 @@ services:
       context: ./backend
     container_name: aether-adk-backend
     environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-${GEMINI_API_KEY}}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      DATABASE_URL: postgresql+asyncpg://aether:${POSTGRES_PASSWORD:-aether_local_dev}@postgres:5432/aether_memory_graph
+      DATABASE_URL: postgresql+asyncpg://aether:${POSTGRES_PASSWORD:-aether_secret_pass}@postgres:5432/aether_companion
       REDIS_URL: redis://redis:6379/0
-      GEMINI_LIVE_MODEL: gemini-3.8-live
-      GEMINI_REASONING_MODEL: gemini-3.8-flash
-      GEMINI_EMBEDDING_MODEL: gemini-embedding-2-preview
+      GEMINI_LIVE_MODEL: ${GEMINI_LIVE_MODEL:-gemini-3.8-live}
+      GEMINI_REASONING_MODEL: ${GEMINI_REASONING_MODEL:-gemini-3.8-flash}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
+      AETHER_API_TOKEN: ${AETHER_API_TOKEN:-aether-dev-local-token-2026}
+      HOST: "0.0.0.0"
+      PORT: "8000"
     ports:
-      - "8080:8080"
+      - "8000:8000"
     depends_on:
       - postgres
       - redis

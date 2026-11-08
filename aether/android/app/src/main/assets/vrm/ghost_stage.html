@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Aria 3D Possessed Ghost Engine</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: transparent;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #stage-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: 2;
+    }
+    #void-backdrop {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      background: radial-gradient(circle at 50% 35%, rgba(49, 46, 129, 0.42) 0%, rgba(15, 23, 42, 0.88) 55%, rgba(3, 6, 17, 0.98) 100%);
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+    body.overlay-transparent #void-backdrop {
+      opacity: 0 !important;
+    }
+    #glitch-flash {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.18) 0%, rgba(168, 85, 247, 0.22) 50%, rgba(45, 212, 191, 0.18) 100%);
+      mix-blend-mode: screen;
+      transition: opacity 0.08s ease;
+    }
+    #loading-badge {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      color: #a5b4fc;
+      background: rgba(8, 12, 26, 0.82);
+      border: 1px solid rgba(129, 140, 248, 0.45);
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.6px;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.4s ease;
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="void-backdrop"></div>
+  <canvas id="stage-canvas"></canvas>
+  <div id="glitch-flash"></div>
+  <div id="loading-badge">Summoning 3D Anime Spirit (Aria VRM)...</div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from './GLTFLoader.js';
+    import { VRMLoaderPlugin, VRMUtils } from './three-vrm.module.js';
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('transparent') === '1') {
+      document.body.classList.add('overlay-transparent');
+    }
+
+    const canvas = document.getElementById('stage-canvas');
+    const loadingBadge = document.getElementById('loading-badge');
+    const glitchFlash = document.getElementById('glitch-flash');
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+
+    // Camera framed for portrait Android screens so Aria is always centered and visible
+    const camera = new THREE.PerspectiveCamera(34, window.innerWidth / window.innerHeight, 0.1, 30.0);
+    camera.position.set(0.0, 1.16, 2.20);
+    camera.lookAt(0.0, 1.06, 0.0);
+
+    // Lighting: Ethereal anime rim light + key light + spirit under-glow
+    const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.85);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+    keyLight.position.set(1.2, 2.2, 2.5);
+    scene.add(keyLight);
+
+    const spiritRimLight = new THREE.PointLight(0x818cf8, 2.4, 6.0);
+    spiritRimLight.position.set(-1.1, 1.5, -0.8);
+    scene.add(spiritRimLight);
+
+    const cyanGhostLight = new THREE.PointLight(0x2dd4bf, 1.8, 5.0);
+    cyanGhostLight.position.set(1.1, 0.6, 1.2);
+    scene.add(cyanGhostLight);
+
+    // Spectral Ghost Wisps / Fireflies orbiting in 3D space
+    const wispCount = 42;
+    const wispGeo = new THREE.BufferGeometry();
+    const wispPositions = new Float32Array(wispCount * 3);
+    const wispSeeds = [];
+    for (let i = 0; i < wispCount; i++) {
+      wispPositions[i * 3] = (Math.random() - 0.5) * 2.6;
+      wispPositions[i * 3 + 1] = Math.random() * 2.6;
+      wispPositions[i * 3 + 2] = (Math.random() - 0.5) * 2.2;
+      wispSeeds.push({
+        speed: 0.6 + Math.random() * 1.4,
+        radius: 0.35 + Math.random() * 0.95,
+        phase: Math.random() * Math.PI * 2,
+        baseY: 0.2 + Math.random() * 2.2
+      });
+    }
+    wispGeo.setAttribute('position', new THREE.BufferAttribute(wispPositions, 3));
+    const wispMat = new THREE.PointsMaterial({
+      color: 0x67e8f9,
+      size: 0.045,
+      transparent: true,
+      opacity: 0.78,
+      blending: THREE.AdditiveBlending
+    });
+    const wispParticles = new THREE.Points(wispGeo, wispMat);
+    scene.add(wispParticles);
+
+    // Root Ghost Container that moves/rotates/scales across the 3D screen space
+    const ghostRig = new THREE.Group();
+    scene.add(ghostRig);
+
+    let currentVrm = null;
+    const clock = new THREE.Clock();
+
+    // Live Ghost State dynamically controlled by Google ADK GhostChoreographyAgent (gemma-4-31b-it) & Gemini Live
+    // Zero fixed loops: Aria only moves along ADK-choreographed 3D waypoints or while actively speaking!
+    const ghostState = {
+      behavior: 'dynamic_choreography',
+      expression: 'Happy',
+      armGesture: 'relaxed_float',
+      targetX: 0.0,
+      targetY: -0.05,
+      depthZ: 0.35,
+      currentX: 0.0,
+      currentY: -0.05,
+      currentZ: 0.35,
+      rotZ: 0.0,
+      targetRotZ: 0.0,
+      rotY: Math.PI,
+      targetRotY: Math.PI,
+      headTiltRad: 0.0,
+      targetHeadTiltRad: 0.0,
+      speed: 1.25,
+      glitchIntensity: 0.2,
+      voiceAmplitude: 0.0,
+      isSpeaking: false,
+      isListening: false,
+      echoGateActive: false,
+      lastCommandTime: 0,
+      lookAtX: 0.0,
+      lookAtY: 0.0,
+      waypointQueue: [],
+      activeWaypoint: null,
+      waypointElapsed: 0.0,
+      speechBeatTimer: 0.0
+    };
+
+    // Load Bundled 3D Anime Girl VRM Model
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+
+    loader.load(
+      './aria_anime_girl.vrm',
+      (gltf) => {
+        const vrm = gltf.userData.vrm;
+        if (!vrm) return;
+        VRMUtils.removeUnnecessaryVertices(gltf.scene);
+        VRMUtils.removeUnnecessaryJoints(gltf.scene);
+
+        vrm.scene.traverse((obj) => {
+          obj.frustumCulled = false;
+        });
+
+        currentVrm = vrm;
+        ghostRig.add(vrm.scene);
+        // VRM 0.x faces -Z by default; rotate 180 deg so she faces the phone screen
+        vrm.scene.rotation.y = Math.PI;
+        loadingBadge.style.opacity = '0';
+        setTimeout(() => { loadingBadge.style.display = 'none'; }, 450);
+
+        if (window.AndroidGhostBridge && window.AndroidGhostBridge.onVrmLoaded) {
+          window.AndroidGhostBridge.onVrmLoaded('aria_anime_girl.vrm');
+        }
+      },
+      (progress) => {
+        if (progress.total > 0) {
+          const pct = Math.round((progress.loaded / progress.total) * 100);
+          loadingBadge.textContent = `Summoning 3D Anime Spirit... ${pct}%`;
+        }
+      },
+      (err) => {
+        console.error('VRM load error:', err);
+        loadingBadge.textContent = '3D Spirit Active';
+        setTimeout(() => { loadingBadge.style.display = 'none'; }, 1000);
+      }
+    );
+
+    function triggerGlitchFlash(intensity = 0.7) {
+      glitchFlash.style.opacity = String(Math.min(0.85, intensity));
+      setTimeout(() => {
+        glitchFlash.style.opacity = '0';
+      }, 95);
+    }
+
+    // Helper to get humanoid bone safely across VRM 0.x / 1.0
+    function getBone(vrm, boneName) {
+      if (!vrm || !vrm.humanoid) return null;
+      if (typeof vrm.humanoid.getNormalizedBoneNode === 'function') {
+        return vrm.humanoid.getNormalizedBoneNode(boneName);
+      }
+      if (typeof vrm.humanoid.getBoneNode === 'function') {
+        return vrm.humanoid.getBoneNode(boneName);
+      }
+      return null;
+    }
+
+    // Helper to set VRM facial expression / viseme blendshapes
+    function setExpressionWeight(vrm, name, weight) {
+      if (!vrm) return;
+      const mgr = vrm.expressionManager;
+      if (mgr && typeof mgr.setValue === 'function') {
+        mgr.setValue(name, weight);
+      }
+    }
+
+    function updateExpressionsAndLipSync(vrm, elapsed, delta) {
+      if (!vrm || !vrm.expressionManager) return;
+
+      // Automatic natural + possessed blinking
+      const blinkCycle = elapsed % 4.2;
+      let blinkVal = 0.0;
+      if (blinkCycle > 4.02 && blinkCycle < 4.16) {
+        blinkVal = Math.sin(((blinkCycle - 4.02) / 0.14) * Math.PI);
+      }
+      if (ghostState.expression === 'Sleeping') {
+        blinkVal = 1.0;
+      }
+      setExpressionWeight(vrm, 'blink', blinkVal);
+
+      // Reset primary emotions before applying active emotion
+      ['happy', 'angry', 'sad', 'relaxed', 'surprised'].forEach((em) => {
+        setExpressionWeight(vrm, em, 0.0);
+      });
+
+      const expr = (ghostState.expression || 'Happy').toLowerCase();
+      if (expr.includes('happy')) {
+        setExpressionWeight(vrm, 'happy', 0.85);
+      } else if (expr.includes('surprised') || expr.includes('possessed') || expr.includes('glitch')) {
+        setExpressionWeight(vrm, 'surprised', 0.92);
+      } else if (expr.includes('concerned') || expr.includes('confused')) {
+        setExpressionWeight(vrm, 'sad', 0.65);
+      } else if (expr.includes('thinking') || expr.includes('curious')) {
+        setExpressionWeight(vrm, 'relaxed', 0.55);
+      } else {
+        setExpressionWeight(vrm, 'relaxed', 0.35);
+      }
+
+      // Real-time 24kHz Voice Lip-Sync Visemes (aa, ih, ou, ee, oh)
+      const amp = ghostState.voiceAmplitude;
+      if (ghostState.isSpeaking && amp > 0.03) {
+        const mouthOpen = Math.min(1.0, amp * 1.45);
+        const vowelWave = Math.sin(elapsed * 18.0);
+        const secondWave = Math.cos(elapsed * 13.0);
+        setExpressionWeight(vrm, 'aa', mouthOpen * (0.65 + 0.35 * Math.max(0, vowelWave)));
+        setExpressionWeight(vrm, 'oh', mouthOpen * 0.45 * Math.max(0, secondWave));
+        setExpressionWeight(vrm, 'ih', mouthOpen * 0.3 * Math.max(0, -vowelWave));
+      } else {
+        setExpressionWeight(vrm, 'aa', 0.0);
+        setExpressionWeight(vrm, 'oh', 0.0);
+        setExpressionWeight(vrm, 'ih', 0.0);
+      }
+    }
+
+    // Compute visible horizontal half-width at depth Z so Aria NEVER flies off narrow portrait phone screens
+    function getVisibleHalfWidthAtZ(zVal) {
+      const dist = Math.max(0.8, camera.position.z - zVal);
+      const vHalf = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+      return vHalf * camera.aspect;
+    }
+
+    function clampToFrustumX(rawX, zVal, edgeRatio = 0.62) {
+      const maxX = getVisibleHalfWidthAtZ(zVal) * edgeRatio;
+      return THREE.MathUtils.clamp(rawX, -maxX, maxX);
+    }
+
+    function damp(current, target, lambda, delta) {
+      return THREE.MathUtils.damp(current, target, lambda, delta);
+    }
+
+    // Build smooth, frustum-safe 3D waypoints for each behavior style
+    function buildDynamicWaypointsForBehavior(behavior, baseTargetX, baseTargetY, baseDepthZ, baseRollRad, baseYawRad, baseTiltRad, armGesture) {
+      const rand = (min, max) => min + Math.random() * (max - min);
+      const zClose = 0.68;
+      const zMid = 0.32;
+      const hwMid = getVisibleHalfWidthAtZ(zMid);
+
+      switch (behavior) {
+        case 'rush_to_glass':
+          return [
+            { x: 0.0, y: -0.06, z: zClose, rollRad: 0.0, yawRad: Math.PI, headTiltRad: 0.16, armGesture: 'reach_to_glass', durationSec: 1.8 }
+          ];
+        case 'ceiling_hang_upside_down':
+          return [
+            { x: clampToFrustumX(baseTargetX || 0.0, zMid, 0.45), y: 2.34, z: 0.35, rollRad: Math.PI, yawRad: Math.PI, headTiltRad: -0.15, armGesture: 'zero_g_spread', durationSec: 2.2 }
+          ];
+        case 'peek_left_edge':
+          return [
+            { x: -hwMid * 0.76, y: -0.02, z: 0.42, rollRad: -0.18, yawRad: Math.PI - 0.22, headTiltRad: -0.20, armGesture: 'wave_greet', durationSec: 1.9 }
+          ];
+        case 'peek_right_edge':
+          return [
+            { x: hwMid * 0.76, y: -0.02, z: 0.42, rollRad: 0.18, yawRad: Math.PI + 0.22, headTiltRad: 0.20, armGesture: 'wave_greet', durationSec: 1.9 }
+          ];
+        case 'orbit_screen':
+          return [
+            { x: -hwMid * 0.55, y: 0.06, z: 0.28, rollRad: -0.08, yawRad: Math.PI - 0.18, headTiltRad: -0.14, armGesture: 'zero_g_spread', durationSec: 1.5 },
+            { x: hwMid * 0.55, y: -0.04, z: 0.45, rollRad: 0.08, yawRad: Math.PI + 0.18, headTiltRad: 0.14, armGesture: 'excited_up', durationSec: 1.5 },
+            { x: 0.0, y: -0.03, z: 0.36, rollRad: 0.0, yawRad: Math.PI, headTiltRad: 0.08, armGesture: 'relaxed_float', durationSec: 1.4 }
+          ];
+        case 'glitch_teleport':
+          return [
+            { x: -hwMid * 0.52, y: 0.04, z: 0.44, rollRad: -0.10, yawRad: Math.PI - 0.16, headTiltRad: -0.22, armGesture: 'possessed_claw', durationSec: 0.75, snap: true },
+            { x: hwMid * 0.48, y: -0.04, z: 0.54, rollRad: 0.10, yawRad: Math.PI + 0.16, headTiltRad: 0.22, armGesture: 'reach_to_glass', durationSec: 0.85, snap: true },
+            { x: 0.0, y: -0.04, z: 0.40, rollRad: 0.0, yawRad: Math.PI, headTiltRad: 0.10, armGesture: 'relaxed_float', durationSec: 1.2 }
+          ];
+        case 'possessed_head_tilt':
+          return [
+            { x: clampToFrustumX(baseTargetX || 0.0, 0.48, 0.45), y: -0.04, z: 0.48, rollRad: 0.0, yawRad: Math.PI, headTiltRad: (Math.random() < 0.5 ? -1 : 1) * 0.34, armGesture: 'curious_chin', durationSec: 1.8 }
+          ];
+        case 'possessed_levitate_spin':
+          return [
+            { x: 0.0, y: 0.05, z: 0.34, rollRad: 0.0, yawRad: Math.PI + Math.PI * 2, headTiltRad: 0.12, armGesture: 'excited_up', durationSec: 1.9 }
+          ];
+        case 'crawl_toward_user':
+          return [
+            { x: -hwMid * 0.25, y: -0.06, z: 0.12, rollRad: -0.06, yawRad: Math.PI - 0.10, headTiltRad: -0.14, armGesture: 'reach_to_glass', durationSec: 1.1 },
+            { x: 0.0, y: -0.06, z: 0.64, rollRad: 0.0, yawRad: Math.PI, headTiltRad: 0.16, armGesture: 'reach_to_glass', durationSec: 1.4 }
+          ];
+        default: {
+          const safeZ = THREE.MathUtils.clamp(typeof baseDepthZ === 'number' ? baseDepthZ : 0.35, -0.10, 0.70);
+          const safeX = clampToFrustumX(typeof baseTargetX === 'number' ? baseTargetX : 0.0, safeZ, 0.55);
+          const safeY = THREE.MathUtils.clamp(typeof baseTargetY === 'number' ? baseTargetY : -0.04, -0.10, 0.08);
+          return [
+            {
+              x: safeX,
+              y: safeY,
+              z: safeZ,
+              rollRad: THREE.MathUtils.clamp(baseRollRad || 0.0, -0.14, 0.14),
+              yawRad: THREE.MathUtils.clamp(baseYawRad || Math.PI, Math.PI - 0.32, Math.PI + 0.32),
+              headTiltRad: THREE.MathUtils.clamp(baseTiltRad || 0.0, -0.32, 0.32),
+              armGesture: armGesture || 'relaxed_float',
+              durationSec: 1.6
+            }
+          ];
+        }
+      }
+    }
+
+    // Core 60fps Natural & Expressive 3D Anime Companion Animator
+    function updatePossessedGhostLocomotion(elapsed, delta) {
+      const spd = THREE.MathUtils.clamp(ghostState.speed || 1.0, 0.6, 1.5);
+      const b = ghostState.behavior;
+
+      // 1. Step through queued 3D waypoints smoothly
+      if (!ghostState.activeWaypoint && ghostState.waypointQueue.length > 0) {
+        ghostState.activeWaypoint = ghostState.waypointQueue.shift();
+        ghostState.waypointElapsed = 0.0;
+        const wp = ghostState.activeWaypoint;
+        const isUpsideDown = Math.abs((wp.rollRad || 0) - Math.PI) < 0.6;
+        const nextZ = THREE.MathUtils.clamp(typeof wp.z === 'number' ? wp.z : ghostState.depthZ, -0.15, 0.74);
+        ghostState.depthZ = nextZ;
+        ghostState.targetX = clampToFrustumX(typeof wp.x === 'number' ? wp.x : ghostState.targetX, nextZ, 0.78);
+        ghostState.targetY = isUpsideDown ? 2.34 : THREE.MathUtils.clamp(typeof wp.y === 'number' ? wp.y : -0.04, -0.10, 0.08);
+        ghostState.targetRotZ = isUpsideDown ? Math.PI : THREE.MathUtils.clamp(typeof wp.rollRad === 'number' ? wp.rollRad : 0.0, -0.20, 0.20);
+        ghostState.targetRotY = typeof wp.yawRad === 'number' ? wp.yawRad : Math.PI;
+        ghostState.targetHeadTiltRad = THREE.MathUtils.clamp(typeof wp.headTiltRad === 'number' ? wp.headTiltRad : 0.0, -0.36, 0.36);
+        if (wp.armGesture) ghostState.armGesture = wp.armGesture;
+        if (wp.snap) {
+          ghostState.currentX = ghostState.targetX;
+          ghostState.currentY = ghostState.targetY;
+          ghostState.currentZ = ghostState.depthZ;
+          triggerGlitchFlash(0.45);
+        }
+      }
+
+      if (ghostState.activeWaypoint) {
+        ghostState.waypointElapsed += delta;
+        const dur = Math.max(0.6, Number(ghostState.activeWaypoint.durationSec) || 1.5);
+        if (ghostState.waypointElapsed >= dur) {
+          ghostState.activeWaypoint = null;
+        }
+      } else if (ghostState.isSpeaking && ghostState.voiceAmplitude > 0.04) {
+        // Gentle, natural conversational poise shifts while speaking (never jerky or off-screen)
+        ghostState.speechBeatTimer += delta;
+        if (ghostState.speechBeatTimer > 2.4) {
+          ghostState.speechBeatTimer = 0.0;
+          const isUpsideDown = Math.abs(ghostState.targetRotZ - Math.PI) < 0.6;
+          if (!isUpsideDown) {
+            const subtleX = (Math.random() - 0.5) * 0.14;
+            ghostState.targetX = clampToFrustumX(subtleX, ghostState.depthZ, 0.45);
+            ghostState.targetY = -0.04 + (Math.random() - 0.5) * 0.04;
+            ghostState.targetRotZ = (Math.random() - 0.5) * 0.05;
+            ghostState.targetRotY = Math.PI + (Math.random() - 0.5) * 0.18;
+          }
+          ghostState.targetHeadTiltRad = (Math.random() - 0.5) * 0.22;
+          const talkGestures = ['relaxed_float', 'wave_greet', 'curious_chin', 'reach_to_glass'];
+          ghostState.armGesture = talkGestures[Math.floor(Math.random() * talkGestures.length)];
+        }
+      } else if (ghostState.isListening) {
+        // Attentive listening posture: gently face user and tilt head slightly
+        ghostState.targetHeadTiltRad = 0.14;
+        ghostState.targetRotZ = 0.0;
+      }
+
+      // Exponentially damped spring smoothing (zero snapping)
+      const posLambda = 3.2 * spd;
+      const rotLambda = 4.0 * spd;
+      ghostState.currentX = damp(ghostState.currentX, ghostState.targetX, posLambda, delta);
+      ghostState.currentY = damp(ghostState.currentY, ghostState.targetY, posLambda, delta);
+      ghostState.currentZ = damp(ghostState.currentZ, ghostState.depthZ, posLambda, delta);
+      ghostState.rotZ = damp(ghostState.rotZ, ghostState.targetRotZ, rotLambda, delta);
+      ghostState.rotY = damp(ghostState.rotY, ghostState.targetRotY, rotLambda, delta);
+      ghostState.headTiltRad = damp(ghostState.headTiltRad, ghostState.targetHeadTiltRad, rotLambda, delta);
+
+      // Keep currentRotY normalized once a spin finishes so subsequent yaw movements don't unwind 360 deg
+      if (!ghostState.activeWaypoint && Math.abs(ghostState.rotY - ghostState.targetRotY) < 0.02 && ghostState.targetRotY > Math.PI * 1.5) {
+        ghostState.rotY = Math.PI;
+        ghostState.targetRotY = Math.PI;
+      }
+
+      // Soft organic breathing & contrapposto sway
+      const breath = Math.sin(elapsed * 2.0);
+      const sway = Math.sin(elapsed * 1.15);
+      const breathY = breath * 0.009;
+      ghostRig.position.set(ghostState.currentX, ghostState.currentY + breathY, ghostState.currentZ);
+      ghostRig.rotation.z = ghostState.rotZ;
+
+      if (currentVrm) {
+        currentVrm.scene.rotation.y = ghostState.rotY;
+
+        const hips = getBone(currentVrm, 'hips');
+        const spine = getBone(currentVrm, 'spine');
+        const chest = getBone(currentVrm, 'chest');
+        const neck = getBone(currentVrm, 'neck');
+        const head = getBone(currentVrm, 'head');
+        const lShoulder = getBone(currentVrm, 'leftShoulder');
+        const rShoulder = getBone(currentVrm, 'rightShoulder');
+        const lUpperArm = getBone(currentVrm, 'leftUpperArm');
+        const rUpperArm = getBone(currentVrm, 'rightUpperArm');
+        const lLowerArm = getBone(currentVrm, 'leftLowerArm');
+        const rLowerArm = getBone(currentVrm, 'rightLowerArm');
+        const lHand = getBone(currentVrm, 'leftHand');
+        const rHand = getBone(currentVrm, 'rightHand');
+        const lUpperLeg = getBone(currentVrm, 'leftUpperLeg');
+        const rUpperLeg = getBone(currentVrm, 'rightUpperLeg');
+        const lLowerLeg = getBone(currentVrm, 'leftLowerLeg');
+        const rLowerLeg = getBone(currentVrm, 'rightLowerLeg');
+
+        const speakAmp = ghostState.isSpeaking ? Math.min(1.0, ghostState.voiceAmplitude) : 0.0;
+        const talkWave = Math.sin(elapsed * 7.5) * speakAmp;
+        const g = ghostState.armGesture || 'relaxed_float';
+        const boneLambda = 6.5;
+
+        if (hips) {
+          hips.rotation.z = damp(hips.rotation.z, sway * 0.025, boneLambda, delta);
+          hips.rotation.y = damp(hips.rotation.y, sway * 0.035, boneLambda, delta);
+        }
+        if (spine) {
+          const leanForward = (b === 'rush_to_glass' || b === 'crawl_toward_user' || ghostState.isListening) ? 0.08 : 0.02;
+          spine.rotation.x = damp(spine.rotation.x, 0.025 * breath + leanForward + speakAmp * 0.05, boneLambda, delta);
+          spine.rotation.z = damp(spine.rotation.z, -sway * 0.02 + ghostState.headTiltRad * 0.12, boneLambda, delta);
+        }
+        if (chest) {
+          chest.rotation.x = damp(chest.rotation.x, 0.03 * Math.cos(elapsed * 2.0) + speakAmp * 0.08, boneLambda, delta);
+          chest.rotation.y = damp(chest.rotation.y, (ghostState.targetX - ghostState.currentX) * 0.25 + sway * 0.02, boneLambda, delta);
+        }
+        if (lShoulder && rShoulder) {
+          lShoulder.rotation.z = damp(lShoulder.rotation.z, breath * 0.02, boneLambda, delta);
+          rShoulder.rotation.z = damp(rShoulder.rotation.z, -breath * 0.02, boneLambda, delta);
+        }
+        if (neck) {
+          neck.rotation.z = damp(neck.rotation.z, ghostState.headTiltRad * 0.35, boneLambda, delta);
+          neck.rotation.y = damp(neck.rotation.y, ghostState.lookAtX * 0.18, boneLambda, delta);
+        }
+        if (head) {
+          const nod = speakAmp * Math.sin(elapsed * 9.0) * 0.09;
+          head.rotation.z = damp(head.rotation.z, ghostState.headTiltRad * 0.60, boneLambda, delta);
+          head.rotation.x = damp(head.rotation.x, ghostState.lookAtY * 0.18 + nod, boneLambda, delta);
+          head.rotation.y = damp(head.rotation.y, ghostState.lookAtX * 0.28 + Math.sin(elapsed * 0.8) * 0.04, boneLambda, delta);
+        }
+
+        // Natural Anime Arm & Hand Poses (VRM 0.x normalized T-pose: z = ±1.22 rad rests arms naturally along waist)
+        let lArmZ = 1.20, rArmZ = -1.20;
+        let lArmX = 0.08, rArmX = 0.08;
+        let lForeZ = 0.18, rForeZ = -0.18;
+        let lForeY = 0.28, rForeY = -0.28;
+        let lHandZ = -0.10, rHandZ = 0.10;
+
+        if (g === 'reach_to_glass') {
+          lArmZ = 0.92; rArmZ = -0.92;
+          lArmX = 0.52 + talkWave * 0.10; rArmX = 0.52 - talkWave * 0.10;
+          lForeZ = 0.38; rForeZ = -0.38;
+          lForeY = 0.45; rForeY = -0.45;
+        } else if (g === 'wave_greet') {
+          lArmZ = 1.18; lArmX = 0.10; lForeZ = 0.20;
+          rArmZ = -0.48 + Math.sin(elapsed * 6.0) * 0.14;
+          rArmX = 0.42;
+          rForeZ = -0.78 + Math.cos(elapsed * 6.0) * 0.22;
+          rHandZ = Math.sin(elapsed * 6.0) * 0.25;
+        } else if (g === 'curious_chin') {
+          lArmZ = 1.18; lArmX = 0.12; lForeZ = 0.24;
+          rArmZ = -0.95; rArmX = 0.54;
+          rForeZ = -1.05; rForeY = -0.55;
+        } else if (g === 'zero_g_spread') {
+          lArmZ = 0.88 + breath * 0.04; rArmZ = -0.88 - breath * 0.04;
+          lArmX = 0.05; rArmX = 0.05;
+          lForeZ = 0.22; rForeZ = -0.22;
+        } else if (g === 'possessed_claw') {
+          lArmZ = 0.78; rArmZ = -0.78;
+          lArmX = 0.58; rArmX = 0.58;
+          lForeZ = 0.52; rForeZ = -0.52;
+        } else if (g === 'excited_up') {
+          lArmZ = 0.62 - speakAmp * 0.15; rArmZ = -0.62 + speakAmp * 0.15;
+          lArmX = 0.38; rArmX = 0.38;
+          lForeZ = 0.45; rForeZ = -0.45;
+        } else {
+          // 'relaxed_float' + subtle conversational hand cadence when speaking
+          lArmZ = 1.20 - speakAmp * 0.12;
+          rArmZ = -1.20 + speakAmp * 0.12;
+          lArmX = 0.10 + speakAmp * 0.22 + talkWave * 0.08;
+          rArmX = 0.10 + speakAmp * 0.22 - talkWave * 0.08;
+          lForeZ = 0.20 + speakAmp * 0.25;
+          rForeZ = -0.20 - speakAmp * 0.25;
+        }
+
+        if (lUpperArm) {
+          lUpperArm.rotation.z = damp(lUpperArm.rotation.z, lArmZ, boneLambda, delta);
+          lUpperArm.rotation.x = damp(lUpperArm.rotation.x, lArmX, boneLambda, delta);
+        }
+        if (rUpperArm) {
+          rUpperArm.rotation.z = damp(rUpperArm.rotation.z, rArmZ, boneLambda, delta);
+          rUpperArm.rotation.x = damp(rUpperArm.rotation.x, rArmX, boneLambda, delta);
+        }
+        if (lLowerArm) {
+          lLowerArm.rotation.z = damp(lLowerArm.rotation.z, lForeZ, boneLambda, delta);
+          lLowerArm.rotation.y = damp(lLowerArm.rotation.y, lForeY, boneLambda, delta);
+        }
+        if (rLowerArm) {
+          rLowerArm.rotation.z = damp(rLowerArm.rotation.z, rForeZ, boneLambda, delta);
+          rLowerArm.rotation.y = damp(rLowerArm.rotation.y, rForeY, boneLambda, delta);
+        }
+        if (lHand && rHand) {
+          lHand.rotation.z = damp(lHand.rotation.z, lHandZ, boneLambda, delta);
+          rHand.rotation.z = damp(rHand.rotation.z, rHandZ, boneLambda, delta);
+        }
+
+        // Natural poised legs reactive to subtle movement
+        const velX = ghostState.targetX - ghostState.currentX;
+        const velY = ghostState.targetY - ghostState.currentY;
+        if (lUpperLeg) {
+          lUpperLeg.rotation.x = damp(lUpperLeg.rotation.x, -0.06 - THREE.MathUtils.clamp(velY, -0.2, 0.2) * 0.2, boneLambda, delta);
+          lUpperLeg.rotation.z = damp(lUpperLeg.rotation.z, -0.03 - THREE.MathUtils.clamp(velX, -0.2, 0.2) * 0.15, boneLambda, delta);
+        }
+        if (rUpperLeg) {
+          rUpperLeg.rotation.x = damp(rUpperLeg.rotation.x, -0.03 - THREE.MathUtils.clamp(velY, -0.2, 0.2) * 0.15, boneLambda, delta);
+          rUpperLeg.rotation.z = damp(rUpperLeg.rotation.z, 0.03 - THREE.MathUtils.clamp(velX, -0.2, 0.2) * 0.15, boneLambda, delta);
+        }
+        if (lLowerLeg) {
+          lLowerLeg.rotation.x = damp(lLowerLeg.rotation.x, 0.14 + Math.abs(breath) * 0.04, boneLambda, delta);
+        }
+        if (rLowerLeg) {
+          rLowerLeg.rotation.x = damp(rLowerLeg.rotation.x, 0.10 + Math.abs(breath) * 0.03, boneLambda, delta);
+        }
+
+        updateExpressionsAndLipSync(currentVrm, elapsed, delta);
+        currentVrm.update(delta);
+      }
+
+      // Animate spectral fireflies around Aria
+      const posAttr = wispGeo.getAttribute('position');
+      for (let i = 0; i < wispCount; i++) {
+        const s = wispSeeds[i];
+        const angle = elapsed * s.speed + s.phase;
+        posAttr.setXYZ(
+          i,
+          ghostState.currentX + Math.cos(angle) * s.radius,
+          s.baseY + Math.sin(elapsed * 1.4 + s.phase) * 0.18,
+          ghostState.currentZ + Math.sin(angle) * s.radius
+        );
+      }
+      posAttr.needsUpdate = true;
+    }
+
+    // Touch / Pointer interaction: tapping or dragging directs Aria's gaze and gently brings her toward your touch
+    window.addEventListener('pointerdown', (e) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1;
+      const ny = -((e.clientY / window.innerHeight) * 2 - 1);
+      ghostState.lookAtX = nx;
+      ghostState.lookAtY = ny;
+      ghostState.waypointQueue = [];
+      ghostState.activeWaypoint = null;
+      ghostState.targetX = clampToFrustumX(nx * 0.25, ghostState.depthZ, 0.55);
+      ghostState.targetY = THREE.MathUtils.clamp(ny * 0.08 - 0.03, -0.10, 0.08);
+      ghostState.targetRotZ = 0.0;
+      ghostState.lastCommandTime = clock.getElapsedTime();
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1;
+      const ny = -((e.clientY / window.innerHeight) * 2 - 1);
+      ghostState.lookAtX = nx;
+      ghostState.lookAtY = ny;
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Global API exposed to Kotlin / Google ADK GhostChoreographyAgent (gemma-4-31b-it) / Gemini Live
+    window.AetherGhost3D = {
+      setExpression(expr) {
+        if (expr) {
+          ghostState.expression = String(expr);
+        }
+      },
+
+      applyGhostCommand(cmd) {
+        const data = typeof cmd === 'string' ? JSON.parse(cmd) : cmd;
+        if (!data) return;
+
+        if (data.expression) {
+          ghostState.expression = String(data.expression);
+        }
+        // If only expression was passed, do NOT reset active movement waypoints!
+        const hasSpatialIntent = Boolean(
+          data.behavior ||
+          (Array.isArray(data.waypoints) && data.waypoints.length > 0) ||
+          typeof data.target_x === 'number' ||
+          typeof data.depth_z === 'number'
+        );
+        if (!hasSpatialIntent) return;
+
+        ghostState.lastCommandTime = clock.getElapsedTime();
+        if (data.behavior) {
+          ghostState.behavior = data.behavior;
+          if (data.behavior === 'glitch_teleport') {
+            triggerGlitchFlash(data.glitch_intensity || 0.45);
+          }
+        }
+        if (typeof data.speed === 'number') ghostState.speed = THREE.MathUtils.clamp(data.speed, 0.65, 1.4);
+        if (data.arm_gesture) ghostState.armGesture = data.arm_gesture;
+
+        const isUpsideDown = ghostState.behavior === 'ceiling_hang_upside_down';
+        const tz = THREE.MathUtils.clamp(typeof data.depth_z === 'number' ? data.depth_z : ghostState.depthZ, -0.15, 0.74);
+        const tx = clampToFrustumX(typeof data.target_x === 'number' ? data.target_x : ghostState.targetX, tz, 0.72);
+        const ty = isUpsideDown
+          ? 2.34
+          : THREE.MathUtils.clamp(typeof data.target_y === 'number' ? data.target_y : -0.04, -0.10, 0.08);
+        const rollRad = isUpsideDown
+          ? Math.PI
+          : typeof data.body_roll_deg === 'number'
+            ? THREE.MathUtils.clamp((data.body_roll_deg * Math.PI) / 180.0, -0.18, 0.18)
+            : 0.0;
+        const yawRad = typeof data.body_yaw_deg === 'number'
+          ? Math.PI + THREE.MathUtils.clamp((data.body_yaw_deg * Math.PI) / 180.0, -0.35, 0.35)
+          : Math.PI;
+        const tiltRad = typeof data.head_tilt_deg === 'number'
+          ? THREE.MathUtils.clamp((data.head_tilt_deg * Math.PI) / 180.0, -0.35, 0.35)
+          : 0.0;
+
+        ghostState.activeWaypoint = null;
+        if (Array.isArray(data.waypoints) && data.waypoints.length > 0 && !isUpsideDown) {
+          ghostState.waypointQueue = data.waypoints.map((wp) => {
+            const wpZ = THREE.MathUtils.clamp(typeof wp.z === 'number' ? wp.z : tz, -0.15, 0.74);
+            return {
+              x: clampToFrustumX(typeof wp.x === 'number' ? wp.x : tx, wpZ, 0.65),
+              y: THREE.MathUtils.clamp(typeof wp.y === 'number' ? wp.y : ty, -0.10, 0.08),
+              z: wpZ,
+              rollRad: typeof wp.roll_deg === 'number' ? THREE.MathUtils.clamp((wp.roll_deg * Math.PI) / 180.0, -0.16, 0.16) : rollRad,
+              yawRad: typeof wp.yaw_deg === 'number' ? Math.PI + THREE.MathUtils.clamp((wp.yaw_deg * Math.PI) / 180.0, -0.32, 0.32) : yawRad,
+              headTiltRad: typeof wp.head_tilt_deg === 'number' ? THREE.MathUtils.clamp((wp.head_tilt_deg * Math.PI) / 180.0, -0.34, 0.34) : tiltRad,
+              armGesture: wp.arm_gesture || ghostState.armGesture,
+              durationSec: Math.max(1.2, Number(wp.duration_sec) || 1.6)
+            };
+          });
+        } else {
+          ghostState.waypointQueue = buildDynamicWaypointsForBehavior(
+            ghostState.behavior,
+            tx,
+            ty,
+            tz,
+            rollRad,
+            yawRad,
+            tiltRad,
+            ghostState.armGesture
+          );
+        }
+      },
+
+      setVoiceState(amplitude, isSpeaking, isListening, echoGateActive) {
+        ghostState.voiceAmplitude = Number(amplitude) || 0.0;
+        ghostState.isSpeaking = Boolean(isSpeaking);
+        ghostState.isListening = Boolean(isListening);
+        ghostState.echoGateActive = Boolean(echoGateActive);
+
+        // Dynamic light color shift when speaking vs listening
+        if (ghostState.isSpeaking) {
+          spiritRimLight.color.setHex(0xa855f7);
+          spiritRimLight.intensity = 2.4 + ghostState.voiceAmplitude * 3.0;
+        } else if (ghostState.isListening) {
+          spiritRimLight.color.setHex(0x2dd4bf);
+          spiritRimLight.intensity = 2.2;
+        } else {
+          spiritRimLight.color.setHex(0x818cf8);
+          spiritRimLight.intensity = 2.0;
+        }
+      },
+
+      setOverlayTransparency(isTransparent) {
+        if (isTransparent) {
+          document.body.classList.add('overlay-transparent');
+        } else {
+          document.body.classList.remove('overlay-transparent');
+        }
+      }
+    };
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.1);
+      const elapsed = clock.getElapsedTime();
+      updatePossessedGhostLocomotion(elapsed, delta);
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
+

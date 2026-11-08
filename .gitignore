@@ -1,8 +1,26 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
+# Logs & Python Bytecode
+logs
 *.log
-.env*
-!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Environment & Local Secrets (Never commit real API keys!)
+.env
+.env.local
+aether/backend/.env
+aether/backend/*.db
+aether/backend/aether_memory_graph_snapshot.json
+
+# Android Gradle & IDE Build Artifacts (Keep gradle/wrapper/ tracked!)
+aether/android/.gradle/
+aether/android/.idea/
+aether/android/local.properties
+aether/android/build/
+aether/android/app/build/
+*.iml
+*.apk
+*.aab
+.DS_Store

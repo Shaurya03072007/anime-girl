@@ -24,7 +24,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.aether.companion"
+        applicationId = "ai.aether.companion"
         minSdk = 29
         targetSdk = 35
         versionCode = 2
@@ -82,4 +82,10 @@ dependencies {
 
     // Coil Image Loading for Studio Anime Assets
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // WebKit WebViewAssetLoader for 60fps Three.js + three-vrm 3D Anime Ghost Engine
+    implementation("androidx.webkit:webkit:1.12.1")
+
+    // Unit Testing
+    testImplementation("junit:junit:4.13.2")
 }
